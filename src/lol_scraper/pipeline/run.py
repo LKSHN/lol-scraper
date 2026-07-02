@@ -1,0 +1,74 @@
+"""End-to-end orchestration: ingestion -> frames -> OCR -> parsing -> storage.
+
+Each stage is implemented in its own module (ingestion/, video/, ocr/,
+extraction/, storage/) so it can be developed and tested independently. This
+module just wires them together for a single Match / Game.
+"""
+
+from lol_scraper.config import settings
+from lol_scraper.extraction.parser import parse_snapshot
+from lol_scraper.ingestion.youtube import fetch_metadata, resolve_stream_url
+from lol_scraper.logging_conf import get_logger
+from lol_scraper.ocr.base import OCRProvider
+from lol_scraper.storage import repository
+from lol_scraper.storage.db import get_session
+from lol_scraper.video.frames import extract_frames
+from lol_scraper.video.regions import DEFAULT_REGIONS
+
+logger = get_logger(__name__)
+
+
+def run_for_video(
+    url: str,
+    *,
+    league: str,
+    blue_team_name: str,
+    red_team_name: str,
+    ocr_provider: OCRProvider,
+    game_number: int = 1,
+    start_seconds: float = 0.0,
+    end_seconds: float | None = None,
+) -> None:
+    """Runs the full pipeline for one game within one YouTube video.
+
+    Multi-game VOD splitting via chapters, and player-level extraction, are
+    left as follow-up work — this wires the happy path for a single game
+    window so each stage can be exercised end-to-end.
+    """
+    metadata = fetch_metadata(url)
+    logger.info("pipeline.metadata", video_id=metadata.video_id, title=metadata.title)
+
+    stream_url = resolve_stream_url(url)
+    frames_dir = settings.frames_dir / metadata.video_id
+    frames = extract_frames(
+        stream_url,
+        frames_dir,
+        start_seconds=start_seconds,
+        end_seconds=end_seconds or metadata.duration_seconds,
+        interval_seconds=settings.frame_interval_seconds,
+    )
+
+    match_id = metadata.video_id
+    game_id = f"{match_id}-g{game_number}"
+
+    with get_session() as session:
+        repository.upsert_match(session, match_id, metadata.video_id, league, metadata.title)
+        repository.upsert_game(
+            session,
+            game_id,
+            match_id,
+            game_number,
+            blue_team_name,
+            red_team_name,
+            start_seconds,
+            end_seconds or metadata.duration_seconds,
+        )
+
+        for frame_path in frames:
+            ocr_result = ocr_provider.read_regions(frame_path, DEFAULT_REGIONS)
+            snapshot = parse_snapshot(
+                game_id, str(frame_path), ocr_result, blue_team_name, red_team_name
+            )
+            repository.add_snapshot(session, snapshot)
+
+    logger.info("pipeline.done", game_id=game_id, frame_count=len(frames))

@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+
+# Env
+.env
+
+# Data (frames/videos/exports are large and reproducible from source VODs)
+data/frames/*
+!data/frames/.gitkeep
+data/processed/*
+!data/processed/.gitkeep
+
+# EasyOCR model cache
+.EasyOCR/
+
+# OS
+.DS_Store
