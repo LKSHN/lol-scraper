@@ -31,6 +31,7 @@ def _is_plausible_gold(gold: int | None, elapsed_seconds: int | None) -> bool:
 def parse_snapshot(
     game_id: str,
     frame_path: str,
+    video_timestamp_seconds: float,
     ocr_result: dict[str, str],
     blue_team_name: str,
     red_team_name: str,
@@ -48,6 +49,7 @@ def parse_snapshot(
     return GameSnapshot(
         game_id=game_id,
         frame_path=frame_path,
+        video_timestamp_seconds=video_timestamp_seconds,
         game_clock_seconds=game_clock_seconds,
         blue=TeamState(team=Team(name=blue_team_name, side="blue"), gold=blue_gold),
         red=TeamState(team=Team(name=red_team_name, side="red"), gold=red_gold),

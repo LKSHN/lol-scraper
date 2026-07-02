@@ -14,10 +14,18 @@ class TeamState(BaseModel):
 
 
 class GameSnapshot(BaseModel):
-    """A single point-in-time reading of the HUD, at `game_clock_seconds` into the game."""
+    """A single point-in-time reading of the HUD.
+
+    `video_timestamp_seconds` is the frame's offset into the source video --
+    known deterministically from the extraction request (start + index *
+    interval), not OCR'd, so it's always present and is what identifies a
+    snapshot for storage/dedup purposes. `game_clock_seconds` is the OCR'd
+    in-game clock reading and can be None if that read failed.
+    """
 
     game_id: str
     frame_path: str
+    video_timestamp_seconds: float
     game_clock_seconds: int | None = None
     blue: TeamState
     red: TeamState

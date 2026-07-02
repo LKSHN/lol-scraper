@@ -13,12 +13,14 @@ def test_parse_snapshot_from_fake_ocr_payload():
     snapshot = parse_snapshot(
         game_id="abc123-g1",
         frame_path="data/frames/abc123/frame_000042.jpg",
+        video_timestamp_seconds=420.0,
         ocr_result=ocr_result,
         blue_team_name="G2 Esports",
         red_team_name="Fnatic",
     )
 
     assert snapshot.game_id == "abc123-g1"
+    assert snapshot.video_timestamp_seconds == 420.0
     assert snapshot.game_clock_seconds == 14 * 60 + 32
     assert snapshot.blue.team.name == "G2 Esports"
     assert snapshot.blue.team.side == "blue"
@@ -31,6 +33,7 @@ def test_parse_snapshot_handles_missing_regions():
     snapshot = parse_snapshot(
         game_id="abc123-g1",
         frame_path="frame.jpg",
+        video_timestamp_seconds=0.0,
         ocr_result={},
         blue_team_name="G2 Esports",
         red_team_name="Fnatic",
@@ -54,6 +57,7 @@ def test_parse_snapshot_rejects_implausible_gold_for_elapsed_time():
     snapshot = parse_snapshot(
         game_id="abc123-g1",
         frame_path="frame.jpg",
+        video_timestamp_seconds=115.0,
         ocr_result=ocr_result,
         blue_team_name="G2 Esports",
         red_team_name="Fnatic",
@@ -70,6 +74,7 @@ def test_parse_snapshot_keeps_plausible_late_game_gold():
     snapshot = parse_snapshot(
         game_id="abc123-g1",
         frame_path="frame.jpg",
+        video_timestamp_seconds=2100.0,
         ocr_result=ocr_result,
         blue_team_name="G2 Esports",
         red_team_name="Fnatic",

@@ -64,19 +64,22 @@ class Snapshot(Base):
     __table_args__ = (
         # Re-running the pipeline over a game it already processed (or an
         # overlapping --start/--end window) must not duplicate readings.
-        # frame_path isn't a safe dedup key on its own: ffmpeg numbers frames
-        # frame_000001.jpg, frame_000002.jpg... from 1 on every run, so the
-        # same filename can refer to a different in-game moment across runs.
-        # game_clock_seconds is the actual in-game identity of a reading, so
-        # it's the dedup key -- see repository.add_snapshot for the upsert.
-        # (Readings where clock OCR failed, i.e. NULL, can't be deduped this
-        # way; Postgres treats NULLs as distinct for uniqueness purposes.)
-        UniqueConstraint("game_id", "game_clock_seconds", name="uq_snapshot_game_clock"),
+        # video_timestamp_seconds -- the frame's offset into the source video
+        # -- is known deterministically from the extraction request, not
+        # OCR'd, so unlike game_clock_seconds it's never NULL and is safe to
+        # use as the dedup key. frame_path isn't safe either: ffmpeg numbers
+        # frames frame_000001.jpg, frame_000002.jpg... from 1 on every run,
+        # so the same filename can refer to a different in-game moment across
+        # runs. See repository.add_snapshot for the upsert.
+        UniqueConstraint(
+            "game_id", "video_timestamp_seconds", name="uq_snapshot_game_video_timestamp"
+        ),
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     game_id: Mapped[str] = mapped_column(ForeignKey("games.id"), index=True)
     frame_path: Mapped[str] = mapped_column(String)
+    video_timestamp_seconds: Mapped[float] = mapped_column(Float)
     game_clock_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     blue_gold: Mapped[int | None] = mapped_column(Integer, nullable=True)

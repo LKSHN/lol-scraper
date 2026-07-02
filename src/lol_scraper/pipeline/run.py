@@ -64,10 +64,19 @@ def run_for_video(
             end_seconds or metadata.duration_seconds,
         )
 
-        for frame_path in frames:
+        # extract_frames samples at a fixed fps=1/interval starting at start_seconds,
+        # so each frame's offset into the source video is known directly from its
+        # position in the list -- no need to (unreliably) OCR it back out of the HUD.
+        for index, frame_path in enumerate(frames):
+            video_timestamp_seconds = start_seconds + index * settings.frame_interval_seconds
             ocr_result = ocr_provider.read_regions(frame_path, DEFAULT_REGIONS)
             snapshot = parse_snapshot(
-                game_id, str(frame_path), ocr_result, blue_team_name, red_team_name
+                game_id,
+                str(frame_path),
+                video_timestamp_seconds,
+                ocr_result,
+                blue_team_name,
+                red_team_name,
             )
             repository.add_snapshot(session, snapshot)
 

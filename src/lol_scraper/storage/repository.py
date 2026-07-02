@@ -55,18 +55,18 @@ def upsert_game(
 
 
 def add_snapshot(session: Session, snapshot: GameSnapshot) -> models.Snapshot:
-    """Insert a snapshot, or overwrite the existing one for the same (game, clock).
+    """Insert a snapshot, or overwrite the existing one for the same (game, video timestamp).
 
     Re-running the pipeline over a game/window it already processed must not
-    duplicate rows -- see the UniqueConstraint on Snapshot. When
-    game_clock_seconds is None (clock OCR failed on that frame), the unique
-    constraint doesn't apply (Postgres never conflicts on NULL), so this
-    always inserts a fresh row in that case; there's no reliable key to dedup
-    it against.
+    duplicate rows -- see the UniqueConstraint on Snapshot. Unlike
+    game_clock_seconds (OCR'd, can fail), video_timestamp_seconds is always
+    present, so every snapshot can be deduped this way, including ones where
+    the clock OCR itself failed.
     """
     values = dict(
         game_id=snapshot.game_id,
         frame_path=snapshot.frame_path,
+        video_timestamp_seconds=snapshot.video_timestamp_seconds,
         game_clock_seconds=snapshot.game_clock_seconds,
         blue_gold=snapshot.blue.gold,
         blue_kills=snapshot.blue.kills,
@@ -76,16 +76,12 @@ def add_snapshot(session: Session, snapshot: GameSnapshot) -> models.Snapshot:
         red_towers=snapshot.red.towers,
     )
 
-    if snapshot.game_clock_seconds is None:
-        row = models.Snapshot(**values)
-        session.add(row)
-        session.flush()
-        return row
-
     stmt = insert(models.Snapshot).values(**values)
     stmt = stmt.on_conflict_do_update(
-        constraint="uq_snapshot_game_clock",
-        set_={k: v for k, v in values.items() if k not in ("game_id", "game_clock_seconds")},
+        constraint="uq_snapshot_game_video_timestamp",
+        set_={
+            k: v for k, v in values.items() if k not in ("game_id", "video_timestamp_seconds")
+        },
     ).returning(models.Snapshot)
     row = session.scalars(stmt).one()
     session.flush()
