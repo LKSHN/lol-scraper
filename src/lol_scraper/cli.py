@@ -51,7 +51,7 @@ def pipeline_run(
     end: float | None = typer.Option(None),
 ) -> None:
     """Run the full pipeline (ingest -> frames -> OCR -> parse -> store) for one game."""
-    from lol_scraper.ocr.easyocr_provider import EasyOCRProvider
+    from lol_scraper.ocr import get_ocr_provider
     from lol_scraper.pipeline.run import run_for_video
 
     run_for_video(
@@ -59,7 +59,7 @@ def pipeline_run(
         league=league,
         blue_team_name=blue_team,
         red_team_name=red_team,
-        ocr_provider=EasyOCRProvider(),
+        ocr_provider=get_ocr_provider(settings.ocr_provider),
         game_number=game_number,
         start_seconds=start,
         end_seconds=end,
@@ -75,7 +75,7 @@ def pipeline_run_match(
 ) -> None:
     """Auto-detect every game in a VOD from its YouTube chapters (titled "Game 1",
     "Game 2", ...) and run the full pipeline for each, in one command."""
-    from lol_scraper.ocr.easyocr_provider import EasyOCRProvider
+    from lol_scraper.ocr import get_ocr_provider
     from lol_scraper.pipeline.run import run_for_match
 
     run_for_match(
@@ -83,7 +83,7 @@ def pipeline_run_match(
         league=league,
         blue_team_name=blue_team,
         red_team_name=red_team,
-        ocr_provider=EasyOCRProvider(),
+        ocr_provider=get_ocr_provider(settings.ocr_provider),
     )
 
 

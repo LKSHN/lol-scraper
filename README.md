@@ -12,7 +12,7 @@ analysis/graphing.
 YouTube URL
   -> ingestion   (yt-dlp: metadata, chapters, resolve a streamable format URL)
   -> video       (ffmpeg samples frames at an interval, straight from the stream URL)
-  -> ocr         (crop HUD regions per frame, OCR them — EasyOCR by default)
+  -> ocr         (crop HUD regions per frame, OCR them — PaddleOCR by default)
   -> extraction  (raw OCR text -> typed GameSnapshot, via postprocess cleanup)
   -> storage     (SQLAlchemy models -> Postgres: matches, games, teams, snapshots)
 ```
@@ -76,8 +76,22 @@ uv run alembic upgrade head
 Validated end-to-end against a real VOD (MSI 2026 Play-Ins, T1 vs Team Liquid
 Alienware): ingestion, 1080p frame streaming (video-only stream, no download),
 HUD regions calibrated against the "LoL Esports" broadcast overlay, OCR
-(clock + team gold, with a per-region character allowlist and a plausibility
-guard on gold readings), and idempotent storage.
+(clock + team gold, plus a plausibility guard on gold readings), and
+idempotent storage.
+
+- **OCR engine**: compared EasyOCR, Tesseract, and PaddleOCR against the same
+  11 real reference frames (see git history on `ocr/`). Tesseract performed
+  worst (frequently blank or missing leading digits, even on a clean frame
+  EasyOCR reads correctly). EasyOCR needed real workarounds — a per-region
+  character allowlist and a grayscale/threshold/upscale preprocessing step —
+  to get usable accuracy, and still occasionally produced a "valid-looking"
+  but wrong reading (e.g. "3.7K" misread as "316" -> 31600, an order of
+  magnitude off) that only the plausibility guard in `extraction/parser.py`
+  catches. PaddleOCR (now the default, `OCR_PROVIDER=paddleocr`) reads every
+  one of those 11 frames correctly at >99% confidence with no allowlist or
+  binarization needed, including the exact frame EasyOCR needed the allowlist
+  for. `EasyOCRProvider` is kept in the codebase as a fallback (switch via
+  `OCR_PROVIDER=easyocr`) behind the same `OCRProvider` interface.
 
 - **The official LoL Esports YouTube channel doesn't use YouTube chapters at
   all** — checked ~10 videos across every upload style (per-game videos,
@@ -96,6 +110,8 @@ guard on gold readings), and idempotent storage.
 - **No per-player extraction yet** — only team-level gold/clock are wired end to
   end; KDA, CS, items, and champion identification (likely template matching
   rather than OCR) are follow-up work.
-- **EasyOCR pulls in PyTorch** (~GB of deps). If that's too heavy, swapping in
-  Tesseract or PaddleOCR only requires adding a new `OCRProvider` implementation
-  (see `ocr/base.py`) — nothing else changes.
+- **Both OCR engines are heavy**: PaddleOCR pulls in PaddlePaddle, EasyOCR pulls
+  in PyTorch (~GB of deps each) — both are installed since `EasyOCRProvider` is
+  kept as a fallback. A lighter engine would need its own `OCRProvider`
+  implementation (see `ocr/base.py`); Tesseract was tried and isn't accurate
+  enough to be one (see above).

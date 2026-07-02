@@ -12,7 +12,7 @@ class Settings(BaseSettings):
     frames_dir: Path = Path("data/frames")
     processed_dir: Path = Path("data/processed")
 
-    ocr_provider: str = "easyocr"
+    ocr_provider: str = "paddleocr"
     frame_interval_seconds: float = 10.0
 
     log_level: str = "INFO"
