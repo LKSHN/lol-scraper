@@ -25,15 +25,26 @@ def parse_int(raw: str) -> int | None:
 def parse_clock_seconds(raw: str) -> int | None:
     """Parse a game clock like '23:45' (MM:SS) into total seconds.
 
-    The ':' separator is thin and sometimes gets OCR'd as a lookalike (e.g.
-    '.') rather than dropped outright, so any single non-digit is accepted
+    The ':' separator is thin and OCR sometimes reads it as a lookalike (e.g.
+    '.') rather than dropping it outright -- any single non-digit is accepted
     between the minute/second digit groups rather than requiring ':' exactly.
+    But often the separator isn't misread as *anything*, it's just gone (e.g.
+    "12:05" -> "1205", confirmed on real broadcast frames, seemingly on
+    motion/scene-change frames where the thin colon dots lose contrast) --
+    falls back to treating the last 2 digits of a plain digit run as seconds,
+    since the overlay always shows exactly 2 digits there.
     """
     cleaned = clean_digits(raw)
+
     match = re.search(r"(\d{1,2})\D(\d{2})", cleaned)
-    if not match:
+    if match:
+        minutes, seconds = match.groups()
+        return int(minutes) * 60 + int(seconds)
+
+    digits = "".join(re.findall(r"\d", cleaned))
+    if len(digits) < 3:
         return None
-    minutes, seconds = match.groups()
+    minutes, seconds = digits[:-2], digits[-2:]
     return int(minutes) * 60 + int(seconds)
 
 

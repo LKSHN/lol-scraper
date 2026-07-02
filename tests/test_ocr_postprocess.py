@@ -29,6 +29,15 @@ def test_parse_clock_seconds_tolerates_misread_separator():
     assert parse_clock_seconds("06.35") == 6 * 60 + 35
 
 
+def test_parse_clock_seconds_tolerates_dropped_separator():
+    # observed real EasyOCR misreads: "12:05" -> "1205", "11:35" -> "1135" —
+    # the thin ':' isn't misread as another char, it's just gone entirely.
+    assert parse_clock_seconds("1205") == 12 * 60 + 5
+    assert parse_clock_seconds("1135") == 11 * 60 + 35
+    assert parse_clock_seconds("905") == 9 * 60 + 5  # single-digit minute, no separator
+    assert parse_clock_seconds("05") is None  # too short to safely split mm/ss
+
+
 def test_parse_gold_thousands_clean_decimal():
     assert parse_gold_thousands("3.3K") == 3300
     assert parse_gold_thousands("12.5K") == 12500
