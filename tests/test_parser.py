@@ -68,6 +68,30 @@ def test_parse_snapshot_rejects_implausible_gold_for_elapsed_time():
     assert snapshot.red.gold is None
 
 
+def test_parse_snapshot_rejects_gold_when_clock_unreadable():
+    # Reproduces a real bug found on a full-VOD run: during non-gameplay
+    # segments (draft/pre-game), the tournament's "26" season-branding logo
+    # sits in the same screen position gold occupies during live play and
+    # gets misread as "2.6K" -> 2600 -- a value that looks perfectly
+    # plausible in isolation. Without a clock reading there's no time context
+    # to validate it against, so it must be rejected regardless of value,
+    # not just when it's absolutely too large.
+    ocr_result = {"game_clock": "", "blue_team_gold": "26", "red_team_gold": "3.3K"}
+
+    snapshot = parse_snapshot(
+        game_id="abc123-g1",
+        frame_path="frame.jpg",
+        video_timestamp_seconds=40.0,
+        ocr_result=ocr_result,
+        blue_team_name="G2 Esports",
+        red_team_name="Fnatic",
+    )
+
+    assert snapshot.game_clock_seconds is None
+    assert snapshot.blue.gold is None
+    assert snapshot.red.gold is None
+
+
 def test_parse_snapshot_keeps_plausible_late_game_gold():
     ocr_result = {"game_clock": "35:00", "blue_team_gold": "45.2K", "red_team_gold": "42.8K"}
 

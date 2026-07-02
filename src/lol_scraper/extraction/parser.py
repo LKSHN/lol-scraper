@@ -13,18 +13,26 @@ from lol_scraper.ocr.postprocess import parse_clock_seconds, parse_gold_thousand
 # deliberately generous (5 champions x 500 starting gold, plus a very high
 # gold/sec ceiling covering passive income + heavy CSing + kills) so real
 # values are never rejected, only OCR noise that implies an implausible gain.
+#
+# When the clock itself didn't parse, gold is rejected outright rather than
+# falling back to some absolute cap -- verified on a real full-VOD run that
+# during non-gameplay segments (draft, pre-game), the tournament's "26"
+# season-branding logo sits in the exact screen position gold occupies during
+# live play and gets misread as "2.6K" -> 2600 on dozens of frames, well
+# within any plausible-looking absolute cap. Without a valid clock reading
+# there's no time context to validate gold against at all, so it can't be
+# trusted regardless of its value.
 _STARTING_TEAM_GOLD = 2500
 _MAX_PLAUSIBLE_GOLD_PER_SECOND = 40
-_MAX_PLAUSIBLE_GOLD_NO_CLOCK = 150_000  # fallback cap when the clock itself didn't parse
 
 
 def _is_plausible_gold(gold: int | None, elapsed_seconds: int | None) -> bool:
     if gold is None:
         return True
+    if elapsed_seconds is None:
+        return False
     if gold < 0:
         return False
-    if elapsed_seconds is None:
-        return gold <= _MAX_PLAUSIBLE_GOLD_NO_CLOCK
     return gold <= _STARTING_TEAM_GOLD + elapsed_seconds * _MAX_PLAUSIBLE_GOLD_PER_SECOND
 
 
