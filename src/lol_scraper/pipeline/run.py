@@ -38,8 +38,17 @@ def run_for_video(
     metadata = fetch_metadata(url)
     logger.info("pipeline.metadata", video_id=metadata.video_id, title=metadata.title)
 
+    match_id = metadata.video_id
+    game_id = f"{match_id}-g{game_number}"
+
     stream_url = resolve_stream_url(url)
-    frames_dir = settings.frames_dir / metadata.video_id
+    # Scoped per game_id, not just video_id: extract_frames clears its output
+    # dir on every call (see video/frames.py), so if two games from the same
+    # VOD (e.g. two chapters) shared a directory, processing game 2 would
+    # wipe game 1's frames and reuse their filenames (frame_000001.jpg, ...)
+    # for entirely different video timestamps -- silently corrupting every
+    # frame_path already stored for game 1.
+    frames_dir = settings.frames_dir / game_id
     frames = extract_frames(
         stream_url,
         frames_dir,
@@ -47,9 +56,6 @@ def run_for_video(
         end_seconds=end_seconds or metadata.duration_seconds,
         interval_seconds=settings.frame_interval_seconds,
     )
-
-    match_id = metadata.video_id
-    game_id = f"{match_id}-g{game_number}"
 
     with get_session() as session:
         repository.upsert_match(session, match_id, metadata.video_id, league, metadata.title)
