@@ -1,4 +1,4 @@
-from sqlalchemy import Float, ForeignKey, Integer, String
+from sqlalchemy import Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
 
 
@@ -61,6 +61,18 @@ class Snapshot(Base):
     """A single time-series stat reading (one OCR'd frame) for a game."""
 
     __tablename__ = "snapshots"
+    __table_args__ = (
+        # Re-running the pipeline over a game it already processed (or an
+        # overlapping --start/--end window) must not duplicate readings.
+        # frame_path isn't a safe dedup key on its own: ffmpeg numbers frames
+        # frame_000001.jpg, frame_000002.jpg... from 1 on every run, so the
+        # same filename can refer to a different in-game moment across runs.
+        # game_clock_seconds is the actual in-game identity of a reading, so
+        # it's the dedup key -- see repository.add_snapshot for the upsert.
+        # (Readings where clock OCR failed, i.e. NULL, can't be deduped this
+        # way; Postgres treats NULLs as distinct for uniqueness purposes.)
+        UniqueConstraint("game_id", "game_clock_seconds", name="uq_snapshot_game_clock"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     game_id: Mapped[str] = mapped_column(ForeignKey("games.id"), index=True)

@@ -1,3 +1,4 @@
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from lol_scraper.extraction.schemas import GameSnapshot
@@ -54,7 +55,16 @@ def upsert_game(
 
 
 def add_snapshot(session: Session, snapshot: GameSnapshot) -> models.Snapshot:
-    row = models.Snapshot(
+    """Insert a snapshot, or overwrite the existing one for the same (game, clock).
+
+    Re-running the pipeline over a game/window it already processed must not
+    duplicate rows -- see the UniqueConstraint on Snapshot. When
+    game_clock_seconds is None (clock OCR failed on that frame), the unique
+    constraint doesn't apply (Postgres never conflicts on NULL), so this
+    always inserts a fresh row in that case; there's no reliable key to dedup
+    it against.
+    """
+    values = dict(
         game_id=snapshot.game_id,
         frame_path=snapshot.frame_path,
         game_clock_seconds=snapshot.game_clock_seconds,
@@ -65,6 +75,18 @@ def add_snapshot(session: Session, snapshot: GameSnapshot) -> models.Snapshot:
         red_kills=snapshot.red.kills,
         red_towers=snapshot.red.towers,
     )
-    session.add(row)
+
+    if snapshot.game_clock_seconds is None:
+        row = models.Snapshot(**values)
+        session.add(row)
+        session.flush()
+        return row
+
+    stmt = insert(models.Snapshot).values(**values)
+    stmt = stmt.on_conflict_do_update(
+        constraint="uq_snapshot_game_clock",
+        set_={k: v for k, v in values.items() if k not in ("game_id", "game_clock_seconds")},
+    ).returning(models.Snapshot)
+    row = session.scalars(stmt).one()
     session.flush()
     return row
