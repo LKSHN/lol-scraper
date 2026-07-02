@@ -17,7 +17,7 @@ def _preprocess(crop: Image.Image, *, binarize: bool) -> np.ndarray:
         return np.array(crop)
     gray = crop.convert("L")
     size = (gray.width * _BINARIZE_UPSCALE, gray.height * _BINARIZE_UPSCALE)
-    big = gray.resize(size, Image.LANCZOS)
+    big = gray.resize(size, Image.Resampling.LANCZOS)
     thresholded = big.point(lambda p: 255 if p > _BINARIZE_THRESHOLD else 0)
     return np.array(thresholded)
 
@@ -39,7 +39,7 @@ class EasyOCRProvider:
             left, top, right, bottom = scale_region(region, width, height)
             crop = image.crop((left, top, right, bottom))
             array = _preprocess(crop, binarize=region.binarize)
-            kwargs = {"detail": 0}
+            kwargs: dict[str, object] = {"detail": 0}
             if region.allowlist:
                 kwargs["allowlist"] = region.allowlist
             texts = self._reader.readtext(array, **kwargs)

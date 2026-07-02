@@ -66,5 +66,26 @@ def pipeline_run(
     )
 
 
+@app.command("pipeline-run-match")
+def pipeline_run_match(
+    url: str,
+    league: str = typer.Option(..., help="e.g. LEC, LCS"),
+    blue_team: str = typer.Option(..., help="Blue side team name (assumed constant across games)"),
+    red_team: str = typer.Option(..., help="Red side team name (assumed constant across games)"),
+) -> None:
+    """Auto-detect every game in a VOD from its YouTube chapters (titled "Game 1",
+    "Game 2", ...) and run the full pipeline for each, in one command."""
+    from lol_scraper.ocr.easyocr_provider import EasyOCRProvider
+    from lol_scraper.pipeline.run import run_for_match
+
+    run_for_match(
+        url,
+        league=league,
+        blue_team_name=blue_team,
+        red_team_name=red_team,
+        ocr_provider=EasyOCRProvider(),
+    )
+
+
 if __name__ == "__main__":
     app()

@@ -76,13 +76,17 @@ def add_snapshot(session: Session, snapshot: GameSnapshot) -> models.Snapshot:
         red_towers=snapshot.red.towers,
     )
 
-    stmt = insert(models.Snapshot).values(**values)
-    stmt = stmt.on_conflict_do_update(
-        constraint="uq_snapshot_game_video_timestamp",
-        set_={
-            k: v for k, v in values.items() if k not in ("game_id", "video_timestamp_seconds")
-        },
-    ).returning(models.Snapshot)
+    stmt = (
+        insert(models.Snapshot)
+        .values(**values)
+        .on_conflict_do_update(
+            constraint="uq_snapshot_game_video_timestamp",
+            set_={
+                k: v for k, v in values.items() if k not in ("game_id", "video_timestamp_seconds")
+            },
+        )
+        .returning(models.Snapshot)
+    )
     row = session.scalars(stmt).one()
     session.flush()
     return row
