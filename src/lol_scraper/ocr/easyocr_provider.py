@@ -39,6 +39,9 @@ class EasyOCRProvider:
             left, top, right, bottom = scale_region(region, width, height)
             crop = image.crop((left, top, right, bottom))
             array = _preprocess(crop, binarize=region.binarize)
-            texts = self._reader.readtext(array, detail=0)
+            kwargs = {"detail": 0}
+            if region.allowlist:
+                kwargs["allowlist"] = region.allowlist
+            texts = self._reader.readtext(array, **kwargs)
             results[region.name] = " ".join(texts).strip()
         return results

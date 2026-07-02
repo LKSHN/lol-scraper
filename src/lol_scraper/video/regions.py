@@ -21,6 +21,15 @@ class Region(BaseModel):
     # it's opt-in per region rather than applied uniformly. See
     # ocr/easyocr_provider.py for the actual preprocessing.
     binarize: bool = False
+    # Character allowlist passed to EasyOCR. Restricting the candidate set at
+    # OCR time (rather than post-hoc string fixes) resolves lookalike-glyph
+    # ambiguity: e.g. on the clock crop, unrestricted OCR misread "6" as "B"
+    # (a legitimate reading in general -- clean_digits' B->8 correction exists
+    # for exactly that confusion the *other* direction), producing "0B:35"
+    # instead of "06:35". With digits+":" as the only candidates, "6" is the
+    # unambiguous best match. Verified against real broadcast frames to fix
+    # this without regressing other reads.
+    allowlist: str | None = None
 
 
 # Calibrated against the official "LoL Esports" broadcast overlay (MSI 2026
@@ -31,16 +40,22 @@ class Region(BaseModel):
 # earlier placeholder assumptions. Other productions (LEC, LCS, LPL) use
 # different overlays and still need their own calibration pass.
 DEFAULT_REGIONS: list[Region] = [
-    Region(name="game_clock", left=0.465, top=0.060, right=0.535, bottom=0.100),
+    Region(
+        name="game_clock",
+        left=0.465, top=0.060, right=0.535, bottom=0.100,
+        allowlist="0123456789:",
+    ),
     Region(
         name="blue_team_gold",
         left=0.400, top=0.005, right=0.460, bottom=0.048,
         binarize=True,
+        allowlist="0123456789.,K",
     ),
     Region(
         name="red_team_gold",
         left=0.530, top=0.005, right=0.590, bottom=0.048,
         binarize=True,
+        allowlist="0123456789.,K",
     ),
 ]
 
