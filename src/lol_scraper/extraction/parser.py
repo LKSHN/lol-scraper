@@ -3,7 +3,7 @@ a typed GameSnapshot, using the postprocessing helpers to clean up digits.
 """
 
 from lol_scraper.extraction.schemas import GameSnapshot, Team, TeamState
-from lol_scraper.ocr.postprocess import parse_clock_seconds, parse_int
+from lol_scraper.ocr.postprocess import parse_clock_seconds, parse_gold_thousands
 
 
 def parse_snapshot(
@@ -19,10 +19,10 @@ def parse_snapshot(
         game_clock_seconds=parse_clock_seconds(ocr_result.get("game_clock", "")),
         blue=TeamState(
             team=Team(name=blue_team_name, side="blue"),
-            gold=parse_int(ocr_result.get("blue_team_gold", "")),
+            gold=parse_gold_thousands(ocr_result.get("blue_team_gold", "")),
         ),
         red=TeamState(
             team=Team(name=red_team_name, side="red"),
-            gold=parse_int(ocr_result.get("red_team_gold", "")),
+            gold=parse_gold_thousands(ocr_result.get("red_team_gold", "")),
         ),
     )

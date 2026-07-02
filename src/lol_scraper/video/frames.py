@@ -34,6 +34,8 @@ def extract_frames(
         raise FfmpegNotFoundError("ffmpeg not found on PATH")
 
     out_dir.mkdir(parents=True, exist_ok=True)
+    for stale in out_dir.glob("frame_*.jpg"):
+        stale.unlink()
     pattern = out_dir / "frame_%06d.jpg"
 
     cmd = ["ffmpeg", "-y", "-ss", str(start_seconds)]

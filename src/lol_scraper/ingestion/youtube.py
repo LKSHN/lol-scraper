@@ -44,11 +44,17 @@ def fetch_metadata(url: str) -> VideoMetadata:
     )
 
 
-def resolve_stream_url(url: str, *, format_selector: str = "best[ext=mp4]") -> str:
+def resolve_stream_url(
+    url: str, *, format_selector: str = "bestvideo[ext=mp4]/best[ext=mp4]"
+) -> str:
     """Resolve a direct, HTTP-range-seekable media URL for a given format.
 
     ffmpeg can then seek/extract frames from this URL directly (`-ss`/`-t`)
-    without yt-dlp downloading the full video to disk.
+    without yt-dlp downloading the full video to disk. We only ever read
+    frames (no audio), so a video-only stream is preferred: YouTube's combined
+    audio+video mp4 formats are capped at 360p, which is too low-res for OCR
+    on small HUD elements — video-only mp4 goes up to 1080p+. Falls back to a
+    combined format for videos that don't expose a video-only mp4 stream.
     """
     opts = _base_ydl_opts() | {"format": format_selector}
     with yt_dlp.YoutubeDL(opts) as ydl:
