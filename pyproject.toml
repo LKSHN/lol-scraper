@@ -17,7 +17,7 @@ dependencies = [
     "sqlalchemy>=2.0.51",
     "structlog>=26.1.0",
     "typer>=0.26.8",
-    "yt-dlp>=2026.6.9",
+    "yt-dlp>=2026.7.4",
 ]
 
 [project.scripts]
